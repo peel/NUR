@@ -1,23 +1,22 @@
-#!/usr/bin/env nix-shell
-#!nix-shell -p python3 -p nix-prefetch-git -p nix -i python3
-
 import json
 import shutil
 import re
 import sys
 import os
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict, Any, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 import xml.etree.ElementTree as ET
 import urllib.request
 import urllib.error
 import subprocess
 import tempfile
+from argparse import Namespace
 #from dataclasses import dataclass, field, InitVar
 from enum import Enum, auto
 from urllib.parse import urlparse, urljoin, ParseResult
 
-ROOT = Path(__file__).parent.parent
+from .path import ROOT
+
 LOCK_PATH = ROOT.joinpath("repos.json.lock")
 MANIFEST_PATH = ROOT.joinpath("repos.json")
 
@@ -224,11 +223,12 @@ callPackages {repo_path.joinpath(spec.nix_file)} {{}}
             "--meta",
             "--xml",
             "--option", "restrict-eval", "true",
+            "--option", "allow-import-from-derivation", "true",
             "--drv-path",
             "--show-trace",
             "-I", f"nixpkgs={nixpkgs_path()}",
             "-I", str(repo_path),
-            "-I", str(eval_path),
+            "-I", str(d),
         ] # yapf: disable
 
         print(f"$ {' '.join(cmd)}")
@@ -265,7 +265,7 @@ def update_lock_file(repos: List[Repo]):
     shutil.move(tmp_file, LOCK_PATH)
 
 
-def main() -> None:
+def update_command(args: Namespace) -> None:
     if LOCK_PATH.exists():
         with open(LOCK_PATH) as f:
             lock_manifest = json.load(f)
@@ -296,7 +296,3 @@ def main() -> None:
                 repos.append(locked_repo)
 
     update_lock_file(repos)
-
-
-if __name__ == "__main__":
-    main()
